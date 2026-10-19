@@ -1,0 +1,29 @@
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_DB: agrosig_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d agrosig_db"]
+      interval: 5s
+      retries: 10
+
+  api:
+    build: ./server
+    ports: ["4000:4000"]
+    depends_on:
+      db: { condition: service_healthy }
+    environment:
+      NODE_ENV: development
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: agrosig_db
+      JWT_SECRET: dev-secret
+      JWT_REFRESH_SECRET: dev-refresh-secret
+      JWT_EXPIRE_IN: 12h
+      JWT_REFRESH_EXPIRE_IN: 7d
+    command: ["sh", "-c", "node_modules/.bin/db-migrate up -e dev && exec node index.js"]

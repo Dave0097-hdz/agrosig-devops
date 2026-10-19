@@ -1,0 +1,48 @@
+﻿{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": {
+      "value": "eastus"
+    },
+    "baseName": {
+      "value": "agrosig"
+    },
+    "deployApp": {
+      "value": false
+    },
+    "imageTag": {
+      "value": "v1"
+    },
+    "dbAdminUser": {
+      "value": "agrosigadmin"
+    },
+    "dbAdminPassword": {
+      "value": "REPLACE_WITH_STRONG_PASSWORD_min16chars"
+    },
+    "jwtSecret": {
+      "value": "REPLACE_WITH_JWT_SECRET_min32chars"
+    },
+    "jwtRefreshSecret": {
+      "value": "REPLACE_WITH_JWT_REFRESH_SECRET_min32chars"
+    },
+    "apiClima": {
+      "value": "REPLACE_WITH_OPENWEATHERMAP_API_KEY"
+    },
+    "firebasePrivateKey": {
+      "value": "disabled"
+    },
+    "plainEnv": {
+      "value": {
+        "JWT_EXPIRE_IN": "12h",
+        "JWT_REFRESH_EXPIRE_IN": "7d",
+        "APP_URL": "https://your-frontend-url.vercel.app",
+        "FIREBASE_PROJECT_ID": "",
+        "FIREBASE_CLIENT_EMAIL": "",
+        "FIREBASE_TYPE": "service_account",
+        "FIREBASE_AUTH_URI": "https://accounts.google.com/o/oauth2/auth",
+        "FIREBASE_TOKEN_URI": "https://oauth2.googleapis.com/token"
+      }
+    }
+  }
+}

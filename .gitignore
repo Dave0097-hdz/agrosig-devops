@@ -1,0 +1,25 @@
+# ─── Secretos y entornos ───────────────────────────────────────────────────────
+.env*
+!.env.example
+!.env.*.example
+*.pem
+
+# ─── Infraestructura ───────────────────────────────────────────────────────────
+# Parámetros locales con credenciales reales
+/infra/*.local.json
+# ARM template compilado (generado por az bicep build, no es fuente)
+/infra/main.json
+
+# ─── Node ──────────────────────────────────────────────────────────────────────
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+*.log
+
+# ─── Uploads ───────────────────────────────────────────────────────────────────
+server/src/uploads/profile/*
+!server/src/uploads/profile/.gitkeep
+
+# ─── IDE ───────────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
