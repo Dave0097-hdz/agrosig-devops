@@ -1,0 +1,84 @@
+name: CI — Tests
+
+# Se dispara en push a main y en cualquier Pull Request hacia main
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Tests de integración
+    runs-on: ubuntu-latest
+
+    # Servicio de PostgreSQL efímero — equivalente al "services" de Azure DevOps
+    services:
+      db:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_DB: agrosig_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        # GitHub Actions espera a que el contenedor esté healthy antes de correr los steps
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      # 1. Descargar el código del repo
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      # 2. Configurar Node.js — equivalente a NodeTool/UseNode en Azure DevOps
+      - name: Configurar Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: server/package-lock.json
+
+      # 3. Instalar dependencias
+      - name: Instalar dependencias
+        run: npm ci
+        working-directory: server
+
+      # 4. Correr migraciones en la BD de test
+      - name: Ejecutar migraciones
+        run: node_modules/.bin/db-migrate up -e test
+        working-directory: server
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_USER: postgres
+          DB_PASSWORD: postgres
+          DB_NAME: agrosig_test
+
+      # 5. Correr los tests
+      - name: Ejecutar tests Jest
+        run: npm run test:ci
+        working-directory: server
+        env:
+          NODE_ENV: test
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_USER: postgres
+          DB_PASSWORD: postgres
+          DB_NAME: agrosig_test
+          JWT_SECRET: test-secret-ci
+          JWT_REFRESH_SECRET: test-refresh-secret-ci
+          JWT_EXPIRE_IN: 12h
+          JWT_REFRESH_EXPIRE_IN: 7d
+
+      # 6. Publicar resultados de tests como artefacto
+      #    En GitHub Actions los resultados se ven en la pestaña "Summary" del workflow
+      - name: Publicar reporte de tests
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: server/junit.xml
