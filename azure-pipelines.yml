@@ -1,0 +1,152 @@
+trigger:
+  branches:
+    include:
+      - main
+
+variables:
+  acrName: acragrosigeob7pen5tw6fe
+  acrLoginServer: acragrosigeob7pen5tw6fe.azurecr.io
+  imageName: agrosig-api
+  imageTag: $(Build.BuildId)
+  resourceGroup: rg-agrosig-mx
+  containerAppName: ca-agrosig-api
+
+stages:
+
+# ─────────────────────────────────────────────
+# Stage 1: Tests de integración
+# ─────────────────────────────────────────────
+- stage: Test
+  displayName: '🧪 Tests'
+  jobs:
+    - job: IntegrationTests
+      displayName: 'Ejecutar tests de integración'
+      pool:
+        vmImage: ubuntu-latest
+      services:
+        db:
+          image: postgis/postgis:16-3.4
+          env:
+            POSTGRES_DB: agrosig_test
+            POSTGRES_USER: postgres
+            POSTGRES_PASSWORD: postgres
+          ports:
+            - 5432:5432
+      steps:
+        - task: NodeTool@0
+          inputs:
+            versionSpec: '20.x'
+          displayName: 'Instalar Node.js 20'
+
+        - script: npm ci
+          workingDirectory: server
+          displayName: 'Instalar dependencias'
+
+        - script: |
+            echo "Esperando a que PostgreSQL esté listo..."
+            until pg_isready -h localhost -p 5432 -U postgres; do
+              sleep 2
+            done
+            echo "PostgreSQL listo."
+          displayName: 'Esperar PostgreSQL'
+
+        - script: node_modules/.bin/db-migrate up -e test
+          workingDirectory: server
+          displayName: 'Ejecutar migraciones en BD de test'
+          env:
+            DB_HOST: localhost
+            DB_PORT: '5432'
+            DB_USER: postgres
+            DB_PASSWORD: postgres
+            DB_NAME: agrosig_test
+
+        - script: npm run test:ci
+          workingDirectory: server
+          displayName: 'Ejecutar tests Jest'
+          env:
+            NODE_ENV: test
+            DB_HOST: localhost
+            DB_PORT: '5432'
+            DB_USER: postgres
+            DB_PASSWORD: postgres
+            DB_NAME: agrosig_test
+            JWT_SECRET: test-secret-pipeline
+            JWT_REFRESH_SECRET: test-refresh-secret-pipeline
+            JWT_EXPIRE_IN: 12h
+            JWT_REFRESH_EXPIRE_IN: 7d
+
+        - task: PublishTestResults@2
+          condition: always()
+          inputs:
+            testResultsFormat: 'JUnit'
+            testResultsFiles: 'server/junit.xml'
+            failTaskOnFailedTests: true
+          displayName: 'Publicar resultados de tests'
+
+# ─────────────────────────────────────────────
+# Stage 2: Build y Push al ACR
+# ─────────────────────────────────────────────
+- stage: Build
+  displayName: '🐳 Build & Push'
+  dependsOn: Test
+  condition: succeeded()
+  jobs:
+    - job: BuildAndPush
+      displayName: 'Construir imagen y publicar en ACR'
+      pool:
+        vmImage: ubuntu-latest
+      steps:
+        - task: AzureCLI@2
+          displayName: 'Login a ACR'
+          inputs:
+            azureSubscription: 'azure-service-connection'
+            scriptType: bash
+            scriptLocation: inlineScript
+            inlineScript: az acr login --name $(acrName)
+
+        - task: Docker@2
+          displayName: 'Build imagen Docker'
+          inputs:
+            command: build
+            buildContext: server
+            dockerfile: server/Dockerfile
+            tags: |
+              $(acrLoginServer)/$(imageName):$(imageTag)
+              $(acrLoginServer)/$(imageName):latest
+
+        - task: Docker@2
+          displayName: 'Push imagen a ACR'
+          inputs:
+            command: push
+            tags: |
+              $(acrLoginServer)/$(imageName):$(imageTag)
+              $(acrLoginServer)/$(imageName):latest
+
+# ─────────────────────────────────────────────
+# Stage 3: Deploy a Container Apps
+# ─────────────────────────────────────────────
+- stage: Deploy
+  displayName: '🚀 Deploy'
+  dependsOn: Build
+  condition: succeeded()
+  jobs:
+    - deployment: DeployToContainerApps
+      displayName: 'Actualizar Container App en Azure'
+      pool:
+        vmImage: ubuntu-latest
+      environment: 'production'
+      strategy:
+        runOnce:
+          deploy:
+            steps:
+              - task: AzureCLI@2
+                displayName: 'Actualizar imagen en Container App'
+                inputs:
+                  azureSubscription: 'azure-service-connection'
+                  scriptType: bash
+                  scriptLocation: inlineScript
+                  inlineScript: |
+                    az containerapp update \
+                      --name $(containerAppName) \
+                      --resource-group $(resourceGroup) \
+                      --image $(acrLoginServer)/$(imageName):$(imageTag)

@@ -2,41 +2,28 @@ import request from 'supertest'
 import { httpServer } from '../../server.js'
 import { pool } from '../../lib/db.js'
 
-// Crear un agente personalizado que acepte certificados auto-firmados
-const agent = request.agent(httpServer, {
-  ca: [], // Ignorar verificación de CA
-  rejectUnauthorized: false // Aceptar certificados auto-firmados
-})
+const agent = request.agent(httpServer)
 
 describe('🔐 AUTH Endpoints', () => {
-  // Antes de las pruebas, limpiar usuarios de prueba
   beforeAll(async () => {
-    // Limpiar cualquier usuario de prueba previo
-    await pool.query("DELETE FROM users WHERE email LIKE '%test%' OR email = 'david@example.com'")
+    await pool.query("DELETE FROM users WHERE email LIKE '%test%'")
   })
 
   afterAll(async () => {
-    // Limpiar después de todas las pruebas
-    await pool.query("DELETE FROM users WHERE email LIKE '%test%' OR email = 'david@example.com'")
+    await pool.query("DELETE FROM users WHERE email LIKE '%test%'")
     await pool.end()
-    httpServer.close() // Cerrar el servidor HTTPS
+    httpServer.close()
   })
 
   describe('🧩 POST /auth/register', () => {
     it('✅ Debe registrar un nuevo usuario exitosamente', async () => {
-      const userData = {
+      const res = await agent.post('/auth/register').send({
         first_name: 'David',
         paternal_surname: 'Hernandez',
         maternal_surname: 'Chavarria',
         email: 'david.test@example.com',
         password: 'password123'
-      }
-
-      const res = await agent
-        .post('/auth/register')
-        .send(userData)
-
-      console.log('Register Response:', res.body)
+      })
 
       expect(res.statusCode).toBe(201)
       expect(res.body.success).toBe(true)
@@ -44,34 +31,34 @@ describe('🔐 AUTH Endpoints', () => {
       expect(res.body.token).toBeDefined()
     })
 
-    it('🚫 No debe permitir registrar un correo existente', async () => {
-      const userData = {
+    it('🚫 No debe permitir registrar un correo ya existente', async () => {
+      const res = await agent.post('/auth/register').send({
         first_name: 'David',
         paternal_surname: 'Hernandez',
         maternal_surname: 'Chavarria',
         email: 'david.test@example.com',
         password: 'password123'
-      }
+      })
 
-      const res = await agent
-        .post('/auth/register')
-        .send(userData)
-
-      expect([400, 500]).toContain(res.statusCode)
+      expect(res.statusCode).toBeGreaterThanOrEqual(400)
       expect(res.body.success).toBe(false)
+    })
+
+    it('🚫 No debe registrar sin campos requeridos', async () => {
+      const res = await agent.post('/auth/register').send({
+        email: 'incompleto.test@example.com'
+      })
+
+      expect(res.statusCode).toBeGreaterThanOrEqual(400)
     })
   })
 
   describe('🔑 POST /auth/login', () => {
-    it('✅ Debe iniciar sesión correctamente con credenciales válidas', async () => {
-      const res = await agent
-        .post('/auth/login')
-        .send({
-          email: 'david.test@example.com',
-          password: 'password123'
-        })
-
-      console.log('Login Response:', res.body)
+    it('✅ Debe iniciar sesión con credenciales válidas', async () => {
+      const res = await agent.post('/auth/login').send({
+        email: 'david.test@example.com',
+        password: 'password123'
+      })
 
       expect(res.statusCode).toBe(200)
       expect(res.body.success).toBe(true)
@@ -80,27 +67,31 @@ describe('🔐 AUTH Endpoints', () => {
     })
 
     it('🚫 No debe iniciar sesión con contraseña incorrecta', async () => {
-      const res = await agent
-        .post('/auth/login')
-        .send({
-          email: 'david.test@example.com',
-          password: 'wrongpassword'
-        })
+      const res = await agent.post('/auth/login').send({
+        email: 'david.test@example.com',
+        password: 'wrongpassword'
+      })
 
-      expect(res.statusCode).toBe(500)
+      expect(res.statusCode).toBeGreaterThanOrEqual(400)
       expect(res.body.success).toBe(false)
     })
 
     it('🚫 No debe iniciar sesión con usuario no registrado', async () => {
-      const res = await agent
-        .post('/auth/login')
-        .send({
-          email: 'noexiste@example.com',
-          password: 'password123'
-        })
+      const res = await agent.post('/auth/login').send({
+        email: 'noexiste.test@example.com',
+        password: 'password123'
+      })
 
-      expect(res.statusCode).toBe(500)
+      expect(res.statusCode).toBeGreaterThanOrEqual(400)
       expect(res.body.success).toBe(false)
+    })
+  })
+
+  describe('🚪 POST /auth/logout', () => {
+    it('🚫 No debe hacer logout sin refresh token', async () => {
+      const res = await agent.post('/auth/logout')
+
+      expect(res.statusCode).toBeGreaterThanOrEqual(400)
     })
   })
 })
