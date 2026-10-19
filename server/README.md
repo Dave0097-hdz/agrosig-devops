@@ -56,54 +56,57 @@ API AGROSIG BACKEND es una aplicación construida con Node.js y Express que prop
 
 ### Prerrequisitos
 
-- Node.js (versión 20.10.0 o superior)
-- PostgreSQL
-- npm o yarn
+- Node.js 20.x o superior
+- Docker y Docker Compose (recomendado para desarrollo local)
+- PostgreSQL con extensión PostGIS (incluido en el Compose)
 
-### Pasos de Instalación
+### Desarrollo local con Docker (recomendado)
 
-1. **Clonar el repositorio**
+Desde la raíz del repositorio:
+
+```bash
+docker compose up
+```
+
+La API queda en `http://localhost:4000`. Las migraciones corren automáticamente.
+
+### Instalación manual
+
+1. Instalar dependencias:
 
    ```bash
-   git clone <url-del-repositorio>
-   cd api-agrosig-backend
-   ```
-
-2. **Instalar dependencias**
-
-   ```bash
+   cd server
    npm install
    ```
 
-3. **Configurar variables de entorno**
-
-   Crear un archivo `.env` en la raíz del proyecto:
+2. Crear archivo `.env` en `server/`:
 
    ```bash
-   # Configuración de la base de datos
    DB_HOST=localhost
    DB_PORT=5432
    DB_NAME=agrosig_db
-   DB_USER=your_username
-   DB_PASSWORD=your_password
+   DB_USER=postgres
+   DB_PASSWORD=postgres
 
-   # Configuración del servidor
    PORT=4000
    NODE_ENV=development
 
-   # Configuración JWT
-   JWT_SECRET=your_jwt_secret_key
-   JWT_REFRESH_SECRET=your_jwt_refresh_secret_key
+   JWT_SECRET=dev-secret
+   JWT_REFRESH_SECRET=dev-refresh-secret
+   JWT_EXPIRE_IN=12h
+   JWT_REFRESH_EXPIRE_IN=7d
 
-   # Configuración Firebase (opcional)
-   FCM_SERVICE_ACCOUNT_KEY=path/to/service-account-key.json
+   # Firebase (opcional — si no se configura, las notificaciones push quedan deshabilitadas)
+   # FIREBASE_PROJECT_ID=
+   # FIREBASE_CLIENT_EMAIL=
+   # FIREBASE_PRIVATE_KEY=
    ```
 
-4. **Inicializar la base de datos**
+3. Correr migraciones y arrancar:
 
    ```bash
-   npm run db:init
    npm run migrate:up
+   npm run dev
    ```
 
 ## 🚀 Uso
@@ -141,27 +144,37 @@ Una vez iniciado el servidor, puedes acceder a la documentación interactiva de 
 
 ## 🧪 Testing
 
-Para ejecutar las pruebas:
+Tests de integración con Jest + Supertest. Requieren PostgreSQL disponible.
 
 ```bash
-# Ejecutar todas las pruebas
+# Ejecutar tests localmente (requiere BD corriendo)
 npm test
 
-# Ejecutar pruebas en modo watch
+# Modo watch para desarrollo
 npm run test:watch
+
+# Modo CI (usado por el pipeline de Azure DevOps)
+npm run test:ci
 ```
+
+Los tests cubren:
+- `auth` — registro, login, casos de error
+- `health` — liveness y readiness probes
 
 ## 📦 Scripts Disponibles
 
-- `npm start` - Inicia servidor en producción
-- `npm run dev` - Inicia servidor en desarrollo con nodemon
-- `npm test` - Ejecuta pruebas unitarias
-- `npm run test:watch` - Ejecuta pruebas en modo watch
-- `npm run migrate:up` - Ejecuta migraciones pendientes
-- `npm run migrate:down` - Revierte última migración
-- `npm run migrate:create` - Crea nueva migración
-- `npm run migrate:reset` - Resetea todas las migraciones
-- `npm run lint:fix` - Corrige estilo de código automáticamente
+| Script | Descripción |
+|--------|-------------|
+| `npm start` | Inicia servidor en producción |
+| `npm run dev` | Inicia servidor en desarrollo con nodemon |
+| `npm test` | Ejecuta tests de integración |
+| `npm run test:watch` | Tests en modo watch |
+| `npm run test:ci` | Tests con reporte JUnit para CI/CD |
+| `npm run migrate:up` | Ejecuta migraciones pendientes |
+| `npm run migrate:down` | Revierte última migración |
+| `npm run migrate:create` | Crea nueva migración |
+| `npm run migrate:reset` | Resetea todas las migraciones |
+| `npm run lint:fix` | Corrige estilo de código |
 
 ## 🔐 Autenticación
 
