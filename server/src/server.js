@@ -26,9 +26,11 @@ const app = express()
 // Configuración del servidor HTTPS
 const httpServer = http.createServer(app)
 
-// Iniciar el servicio de notificaciones programadas
-notificationsSchedulerService.startSchedulers()
-console.log('🔔 Servicio de notificaciones programadas iniciado.', notificationsSchedulerService.startSchedulers)
+// Iniciar el servicio de notificaciones programadas (no en test para evitar handles abiertos)
+if (config.env !== 'test') {
+  notificationsSchedulerService.startSchedulers()
+  console.log('🔔 Servicio de notificaciones programadas iniciado.', notificationsSchedulerService.startSchedulers)
+}
 
 // Middlewares
 app.use(express.json())

@@ -9,7 +9,7 @@
     "lint:fix": "standard --fix",
     "test": "cross-env NODE_ENV=test NODE_OPTIONS=--experimental-vm-modules jest --detectOpenHandles --runInBand",
     "test:watch": "cross-env NODE_ENV=test NODE_OPTIONS=--experimental-vm-modules jest --watch --detectOpenHandles --runInBand",
-    "test:ci": "cross-env NODE_ENV=test NODE_OPTIONS=--experimental-vm-modules jest --detectOpenHandles --runInBand --reporters=default --reporters=jest-junit",
+    "test:ci": "cross-env NODE_ENV=test NODE_OPTIONS=--experimental-vm-modules jest --runInBand --forceExit --reporters=default --reporters=jest-junit",
     "migrate:up": "db-migrate up",
     "migrate:down": "db-migrate down",
     "migrate:create": "db-migrate create",

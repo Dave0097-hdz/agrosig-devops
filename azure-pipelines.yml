@@ -21,6 +21,7 @@ stages:
   jobs:
     - job: IntegrationTests
       displayName: 'Ejecutar tests de integración'
+      timeoutInMinutes: 10
       pool:
         vmImage: ubuntu-latest
       services:
